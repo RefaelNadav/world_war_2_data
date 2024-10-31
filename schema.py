@@ -1,4 +1,4 @@
-from calendar import error
+
 
 import graphene
 from graphene_sqlalchemy import SQLAlchemyObjectType
@@ -81,12 +81,81 @@ class Query(graphene.ObjectType):
             TargetModel.target_industry == target_industry.strip()
         ).all()
 
-    def resolve_target_results_by_target_type_id(self, info, target_type_id):
-        return db_session.query(MissionModel.aircraft_returned, MissionModel.aircraft_failed).join(
-            MissionModel.targets
-        ).filter(
-            TargetModel.target_type_id == target_type_id
-        ).all()
+    # def resolve_target_results_by_target_type_id(self, info, target_type_id):
+    #     return db_session.query(MissionModel.aircraft_returned, MissionModel.aircraft_failed).join(
+    #         MissionModel.targets
+    #     ).filter(
+    #         TargetModel.target_type_id == target_type_id
+    #     ).all()
+
+
+
+
+# Mutations
+
+class AddMission(graphene.Mutation):
+    class Arguments:
+        mission_date = graphene.Date(required=True)
+        airborne_aircraft = graphene.Float(required=True)
+        attacking_aircraft = graphene.Float(required=True)
+        bombing_aircraft = graphene.Float(required=True)
+        aircraft_returned = graphene.Float(required=True)
+        aircraft_failed = graphene.Float(required=True)
+        aircraft_lost = graphene.Float(required=True)
+
+    mission = graphene.Field(lambda: MissionModel)
+
+    def mutate(self, info, mission_date, airborne_aircraft, attacking_aircraft,
+               bombing_aircraft, aircraft_returned, aircraft_failed, aircraft_lost):
+        new_mission = MissionModel(mission_date=mission_date,
+                                   airborne_aircraft=airborne_aircraft,
+                                   attacking_aircraft=attacking_aircraft,
+                                   bombing_aircraft=bombing_aircraft,
+                                   aircraft_returned=aircraft_returned,
+                                   aircraft_failed=aircraft_failed,
+                                   aircraft_lost=aircraft_lost
+                                   )
+        db_session.add(new_mission)
+        db_session.commit()
+        return AddMission(mission=new_mission)
+
+
+class AddTarget(graphene.Mutation):
+    class Arguments:
+        target_industry = graphene.String(required=True)
+        target_priority = graphene.Int(required=True)  # Format: 'YYYY-MM-DD'
+        mission_id = graphene.Int(required=True)
+
+    target = graphene.Field(lambda: TargetModel)
+
+    def mutate(self, info, target_industry, target_priority, mission_id):
+        new_target = TargetModel(target_industry=target_industry,
+                                 target_priority=target_priority,
+                                 mission_id=mission_id)
+        db_session.add(new_target)
+        db_session.commit()
+        return AddTarget(target=new_target)
+
+
+class DeleteMission(graphene.Mutation):
+    class Arguments:
+        mission_id = graphene.Int(required=True)
+
+    ok = graphene.Boolean()
+
+    def mutate(self, info, mission_id):
+        mission = db_session.query(MissionModel).get(mission_id)
+        if not mission:
+            return DeleteMission(ok=False)
+        db_session.delete(mission)
+        db_session.commit()
+        return DeleteMission(ok=True)
+
+
+
+class Mutation(graphene.ObjectType):
+    add_mission = AddMission.Field()
+    add_target = AddTarget.Field()
 
 
 
@@ -95,4 +164,4 @@ class Query(graphene.ObjectType):
 
 
 
-schema = graphene.Schema(query=Query)
+schema = graphene.Schema(query=Query, mutation=Mutation)
