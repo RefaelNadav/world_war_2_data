@@ -156,6 +156,7 @@ class DeleteMission(graphene.Mutation):
 class Mutation(graphene.ObjectType):
     add_mission = AddMission.Field()
     add_target = AddTarget.Field()
+    delete_mission = DeleteMission.Field()
 
 
 
