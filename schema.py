@@ -1,3 +1,4 @@
+from calendar import error
 
 import graphene
 from graphene_sqlalchemy import SQLAlchemyObjectType
@@ -42,24 +43,34 @@ class Target(SQLAlchemyObjectType):
 
 class Query(graphene.ObjectType):
     mission_by_id = graphene.Field(Mission, id=graphene.Int(required=True))
-    missions_by_range_dates = graphene.List(Mission, start_date=graphene.Date(), end_date=graphene.Date())
+    missions_by_range_dates = graphene.List(Mission, start_date=graphene.String(required=True), end_date=graphene.String(required=True))
     missions_by_country = graphene.List(Mission, country_id=graphene.Int(required=True))
 
     def resolve_mission_by_id(self, info, id):
-        return db_session.query(MissionModel).get(id)
+        return (db_session.query(MissionModel).join(
+            MissionModel.targets
+        ).get(id))
 
     def resolve_missions_by_range_dates(self, info, start_date, end_date):
-        return db_session.query(MissionModel).filter(
-            start_date <= MissionModel.mission_date >= end_date,
-        ).all()
+        try:
+            start_date_obj = datetime.strptime(start_date.strip(), '%Y-%m-%d').date()
+            end_date_obj = datetime.strptime(end_date.strip(), '%Y-%m-%d').date()
+        except ValueError:
+            return []
+        return (db_session.query(MissionModel)
+                .filter(MissionModel.mission_date.between(start_date_obj, end_date_obj))
+                .all())
 
-    # def resolve_missions_by_country(self, info, country_id):
-    #     return db_session.query(MissionModel).join(
-    #         TargetsModel.mission
-    #     ).join(
-    #         CountryModel.Tar
-    #     )
-    #     )
+    def resolve_missions_by_country(self, info, country_id):
+        return db_session.query(MissionModel).join(
+            MissionModel.targets
+        ).join(
+            TargetModel.city
+        ).join(
+            CityModel.country
+        ).filter(
+            CountryModel.country_id == country_id
+        )
 
 
 
