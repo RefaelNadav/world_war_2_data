@@ -45,6 +45,8 @@ class Query(graphene.ObjectType):
     mission_by_id = graphene.Field(Mission, id=graphene.Int(required=True))
     missions_by_range_dates = graphene.List(Mission, start_date=graphene.String(required=True), end_date=graphene.String(required=True))
     missions_by_country = graphene.List(Mission, country_id=graphene.Int(required=True))
+    missions_by_target_industry = graphene.List(Mission, target_industry=graphene.String(required=True))
+    target_results_by_target_type_id = graphene.List(Mission, target_type_id=graphene.Int(required=True))
 
     def resolve_mission_by_id(self, info, id):
         return (db_session.query(MissionModel).join(
@@ -71,6 +73,23 @@ class Query(graphene.ObjectType):
         ).filter(
             CountryModel.country_id == country_id
         )
+
+    def resolve_missions_by_target_industry(self, info, target_industry):
+        return db_session.query(MissionModel).join(
+            MissionModel.targets
+        ).filter(
+            TargetModel.target_industry == target_industry.strip()
+        ).all()
+
+    def resolve_target_results_by_target_type_id(self, info, target_type_id):
+        return db_session.query(MissionModel.aircraft_returned, MissionModel.aircraft_failed).join(
+            MissionModel.targets
+        ).filter(
+            TargetModel.target_type_id == target_type_id
+        ).all()
+
+
+
 
 
 
